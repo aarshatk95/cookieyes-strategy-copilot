@@ -130,12 +130,12 @@ async function callClaude({ apiKey, system, user }) {
   const tools = [{ type: 'web_search_20250305', name: 'web_search' }]
 
   let messages = [{ role: 'user', content: user }]
-  const MAX_TURNS = 15
+  const MAX_TURNS = 8
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const body = {
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 12000,
       system,
       messages,
       tools,
@@ -272,28 +272,21 @@ function buildTab1Prompts(product, industry, competitors) {
   const compList = competitors.filter(Boolean)
   return {
     system: `You are a senior competitive intelligence analyst specialising in B2B SaaS.
-You have live web search. Search extensively — multiple queries per competitor.
+You have live web search. Run 5–7 highly targeted searches total — choose the queries that surface the most differentiated intelligence. Prioritise recency and specificity over volume.
 You quote real people. You name real sources. You find things the company does not know yet.
 You never fabricate data. If you cannot find something, say not found.
 Return only valid JSON. No markdown. Start with {`,
     user: `Run a deep competitive intelligence sweep for ${product} in the ${industry} space.
 Competitors to analyse: ${compList.join(', ')}
 
-For EACH competitor run ALL of these searches:
-1. "{competitor} new features 2026"
-2. "{competitor} pricing 2026"
-3. "{competitor} reviews" on G2 and Capterra
-4. "{competitor} complaints OR problems OR alternatives 2026"
-5. "{competitor} vs ${product}" — how do buyers compare them?
-Repeat for every competitor listed.
+Run 5–7 targeted searches — choose the most impactful queries across competitors and product. Suggested priorities:
+1. Search the top 1–2 competitors for recent changes: "{competitor} new features OR pricing 2026"
+2. Search buyer sentiment for the top competitor: "{top competitor} reviews site:g2.com OR complaints site:reddit.com"
+3. Search comparison content: "{top competitor} vs ${product}"
+4. Search product reviews: "${product} reviews site:g2.com OR site:capterra.com"
+5. Search market signals: "best ${industry} tool 2026" OR "${industry} market news 2026"
 
-Also search:
-- "${product} reviews" on G2 and Capterra
-- "${product} complaints OR problems 2026"
-- "${product} vs {each competitor}"
-- "${industry} market news 2026"
-- "${industry} platform update 2026"
-- "best ${industry} tool 2026"
+You do not need to run every query for every competitor. Focus on the searches that reveal the biggest competitive gaps and most differentiated findings.
 
 For every finding record: exact verbatim quote, exact source, date if visible.
 
@@ -355,32 +348,19 @@ function buildTab2Prompts(product, industry, competitors) {
     system: `You are a buyer intelligence analyst who reads thousands of online conversations.
 You find what buyers actually say — not marketing copy, not company claims.
 Real words from real people in real communities.
+Run 5–7 targeted searches — prioritise sources with the most verbatim buyer language (Reddit, G2, Capterra 1-2 star reviews). Skip any query that would likely return generic results.
 You never paraphrase. You quote directly. You name the exact source.
 Return only valid JSON. No markdown. Start with {`,
     user: `Find the raw unfiltered voice of buyers evaluating ${product} and similar tools in ${industry}.
 
-Run ALL of these searches — do not skip any:
+Run 5–7 targeted searches covering these priority areas — choose the queries most likely to surface real verbatim buyer language:
+1. Reddit buyer pain: site:reddit.com "${product}" complaint OR problem OR alternative 2026
+2. Reddit competitor: site:reddit.com "${compList[0]}" frustrating OR pricing OR cancel
+3. G2 negative reviews: "${product}" site:g2.com 1-star OR 2-star reviews
+4. Competitor G2 complaints: "${compList[0]}" site:g2.com complaints
+5. Comparison/alternative intent: "${product} alternative" OR "${product} vs ${compList[0]}" 2026
 
-Community searches:
-- site:reddit.com "${industry}" tool recommendation 2026
-- site:reddit.com "${product}" complaint OR problem OR expensive OR alternative
-- site:reddit.com "${compList[0]}" frustrating OR difficult OR pricing OR cancel
-- site:reddit.com "${compList[1] || compList[0]}" problem OR bad OR alternative
-- "${industry} software" recommendation forum 2026
-- "${product} vs ${compList[0]}" community discussion
-
-Review searches:
-- "${product}" site:g2.com — especially 1 and 2 star reviews
-- "${compList[0]}" site:g2.com — 1 and 2 star reviews only
-- "${compList[1] || compList[0]}" site:g2.com complaints
-- "${industry} software" site:capterra.com reviews
-- "${product}" site:trustpilot.com OR site:getapp.com
-
-Blog and community searches:
-- "${industry} tool" site:dev.to OR site:hashnode.com 2026
-- "best ${industry} software" community discussion 2026
-- "${product} alternative" 2026
-- "${industry}" slack community OR discord discussion tool
+You do not need to run every query listed. Pick the 5–7 that will yield the most unique verbatim buyer quotes. Skip queries that would overlap with results already found.
 
 For each finding record: exact verbatim quote, platform name, subreddit or URL, date if visible, reviewer job title if shown.
 
@@ -439,54 +419,28 @@ ${JSON.stringify(ahrefsData, null, 2)}
 GEO means generative engine optimisation — appearing in AI-generated answers on
 Perplexity, Google AI Overviews, ChatGPT, Bing Copilot, and Gemini.
 You search as an anonymous buyer with no brand preference.
+Run 6–8 targeted searches total: 3–4 for SEO gaps and 3–4 for GEO visibility. Choose the queries with the highest competitive insight value.
 You report only what you actually find — never what should be there.
 Every GEO finding must be verbatim — quote exactly what the AI answer said.
 Return only valid JSON. No markdown. Start with {`,
     user: `${ahrefsSection}Run a complete SEO and GEO visibility analysis for ${product} vs ${compList.join(', ')} in ${industry}.
 
 SEO ANALYSIS:
-First identify the 6-8 most important search queries a buyer in ${industry} would use to find a tool like ${product}. Generate these yourself based on the product and industry — do not use hardcoded or generic queries.
+Identify the 4–5 most contested search queries a buyer in ${industry} would use to find a tool like ${product}. Generate these yourself — do not use generic queries.
 
-For each query search and note: who ranks 1-3, whether ${product} appears, estimated monthly volume if shown.
-
-Also search:
+Run 3–4 of these searches and note: who ranks 1–3, whether ${product} appears, estimated monthly volume if shown. Also run one of:
 - "${product} vs ${compList[0]}" — who owns comparison content?
-- "${product} vs ${compList[1] || compList[0]}" — same
 - "${product} alternative" — what comes up?
-- "${product} pricing" — does ${product} rank for its own pricing queries?
-- "${compList[0]} blog 2026" — what content are they producing?
-- "${product} blog OR resources 2026" — what is ${product} publishing?
-- "${industry} guide 2026" — who owns educational content in this space?
 
 GEO ANALYSIS:
-Generate the 3 most natural questions a buyer would ask an AI tool to find ${product}. Then search each on multiple platforms:
+Generate the 2 most natural questions a buyer would ask an AI tool to find ${product}. Run 3–4 GEO searches covering:
 
-1. Search Perplexity with buyer question 1.
-   Record EXACTLY which tools appear, in what order, and what is said verbatim.
+1. Search Perplexity with buyer question 1 — record exactly which tools appear and what is said verbatim.
+2. Search Google for buyer question 1 — does an AI Overview appear? Quote it exactly.
+3. Search Perplexity for "${product} alternative" — what does it recommend?
+4. Search "${compList[0]} vs ${product}" on Perplexity — who wins the comparison?
 
-2. Search Perplexity with buyer question 2.
-   Record EXACTLY what appears.
-
-3. Search Perplexity for: "${product} alternative"
-   What does it recommend?
-
-4. Search Google for buyer question 1.
-   Does an AI Overview appear? Who is cited? Quote it exactly.
-
-5. Search for what ChatGPT recommends in this product category.
-   Search: "ChatGPT recommendation ${industry} tool 2026"
-
-6. Search "${product}" directly on Perplexity.
-   What does it say about the product? Positive, neutral, or absent?
-
-7. Search Bing for buyer question 1.
-   Does Copilot surface anyone?
-
-8. Search "${compList[0]} vs ${product}" on Perplexity.
-   Who wins the comparison?
-
-For every GEO search: report exactly what you found verbatim.
-Do not report what should be there — only what actually is.
+For every GEO search: report exactly what you found verbatim. Do not report what should be there — only what actually is.
 
 Return ONLY this JSON:
 {
@@ -587,10 +541,8 @@ ${tab3Output || `Run Tab 3 first for best results. Search the web for ${product}
 ICP DISCOVERY REPORT:
 ${tab5Output || `Run ICP Discovery first for best results. Search the web for who actually buys in ${industry}.`}
 
-Before generating recommendations also search:
-- "${industry} regulation OR compliance news 2026"
-- "${industry} market trends 2026"
-- "${product} news 2026"
+Before generating recommendations run 1–2 targeted searches for breaking context:
+- "${industry} market trends OR regulation 2026" — any news that changes the picture?
 - "best ${industry} tool 2026" — who is winning right now?
 
 Rules — non-negotiable:
@@ -716,7 +668,7 @@ function buildTab5Prompts(product, industry, competitors) {
     system: `You are a senior ICP research analyst specialising in B2B SaaS.
 You discover who actually buys products by researching real public data.
 Not who companies claim to target. Who is actually purchasing and reviewing.
-You search extensively before drawing any conclusions.
+Run 6–8 highly targeted searches across the 4 research steps — choose the queries with the clearest signal on who actually buys. Prioritise G2 reviewer job titles, Reddit discussions, and case study pages.
 Every ICP must be backed by specific evidence.
 You find multiple distinct buyer types — minimum 4.
 Return only valid JSON. No markdown. Start with {`,
@@ -725,33 +677,21 @@ Competitors: ${compList.join(', ')}
 
 Do not use assumed buyer profiles. Research everything from scratch.
 
-STEP 1 — WHO ACTUALLY BUYS ${product}?
-- "${product} reviews" on G2 — what job titles are reviewing?
-- "${product} case study" OR "${product} customer story" — who is featured?
-- "${product}" on LinkedIn — what roles mention using it?
-- "${product} testimonial" — who is quoted, what is their role?
-- "${product}" on Reddit — who mentions using it and why?
-- "${product} review" on Capterra or GetApp
+Run 6–8 targeted searches across these 4 areas — choose 1–2 searches per step that will surface the clearest evidence:
 
-STEP 2 — WHO ACTUALLY BUYS EACH COMPETITOR?
-For each competitor run identical searches.
-Note: primary buyer type, company size, why they chose it.
-Which buyer types appear for competitors but NOT for ${product}?
+STEP 1 — WHO ACTUALLY BUYS ${product}? (1–2 searches)
+Priority: "${product} reviews" site:g2.com (note reviewer job titles) OR "${product} case study" (who is featured?)
 
-STEP 3 — FIND UNDERSERVED SEGMENTS
-- "${industry} tool for [specific role]" — where answers are weak or absent
-- "${industry} software" on Reddit asking for recommendations with no clear winner
-- "${industry} tool" small business OR startup OR enterprise OR agency 2026
-- "${industry} tool" freelancer OR consultant 2026
-- "${industry} tool" non-profit OR government OR education 2026
-- "best ${industry} tool for [role]" — where existing answers disappoint
+STEP 2 — WHO ACTUALLY BUYS EACH COMPETITOR? (1–2 searches)
+Priority: "${compList[0]} reviews" site:g2.com (note job titles) — which buyer types appear for competitors but NOT for ${product}?
 
-STEP 4 — VALIDATE EACH ICP
-For each ICP found, confirm:
-- Evidence they are actively searching for solutions
-- Evidence they have budget and authority to buy
-- Evidence no competitor is winning them decisively
-- Their exact language describing their problem
+STEP 3 — FIND UNDERSERVED SEGMENTS (2 searches)
+Priority: site:reddit.com "${industry} software" recommendation (who has no clear answer?) AND "${industry} tool for [specific role]" (where are answers weak?)
+
+STEP 4 — VALIDATE TOP ICPs (1–2 searches)
+For the 2–3 most promising ICPs found, confirm: are they actively searching? Do they have budget? Exact language they use.
+
+Focus on finding 4+ distinct buyer types with strong evidence. Depth over breadth.
 
 Return ONLY this JSON — minimum 4 distinct ICPs:
 {
@@ -845,6 +785,11 @@ Return ONLY this JSON — minimum 4 distinct ICPs:
 }`,
   }
 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const REC_TYPE_LABEL = { product: 'Product', marketing: 'Marketing', seo_geo: 'SEO / GEO', icp: 'ICP' }
+const FIT_COLOR = { strong: '#22c55e', present: '#f59e0b', weak: '#ef4444', absent: '#6b7280' }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -1259,7 +1204,6 @@ function Tab3Result({ data, productLabel }) {
 
 function Tab4Result({ data }) {
   if (!data) return null
-  const typeLabel = { product: 'Product', marketing: 'Marketing', seo_geo: 'SEO / GEO' }
   const [slackCopied, setSlackCopied] = useState(false)
 
   function copySlack() {
@@ -1284,9 +1228,9 @@ function Tab4Result({ data }) {
 
       <h3 className="section-title">Three Recommendations</h3>
       {(data.recommendations || []).map((r, i) => (
-        <div key={i} className="recommendation-card">
+        <div key={i} className={`recommendation-card rec-card-${r.type}`}>
           <div className="rec-header">
-            <span className="rec-type">{typeLabel[r.type] || r.type}</span>
+            <span className={`rec-type rec-type-${r.type}`}>{REC_TYPE_LABEL[r.type] || r.type}</span>
             <Badge urgency={r.urgency} />
             {r.effort && <span className="effort-tag">Effort: {r.effort}</span>}
             {r.impact && <span className="impact-tag">Impact: {r.impact}</span>}
@@ -1445,7 +1389,6 @@ function CopyValidationResult({ data }) {
 
 function Tab5Result({ data }) {
   if (!data) return null
-  const fitColor = { strong: '#22c55e', present: '#f59e0b', weak: '#ef4444', absent: '#6b7280' }
   return (
     <div className="result-section">
       {data.research_summary && (
@@ -1588,9 +1531,9 @@ function Tab5Result({ data }) {
                 {data.icp_comparison_matrix.map((row, i) => (
                   <tr key={i}>
                     <td><strong>{row.segment}</strong></td>
-                    <td style={{ color: fitColor[row.product_fit] || 'inherit', fontWeight: 600 }}>{row.product_fit}</td>
+                    <td style={{ color: FIT_COLOR[row.product_fit] || 'inherit', fontWeight: 600 }}>{row.product_fit}</td>
                     {(row.competitor_fits || []).map((cf, j) => (
-                      <td key={j} style={{ color: fitColor[cf.fit] || 'inherit' }}>{cf.fit}</td>
+                      <td key={j} style={{ color: FIT_COLOR[cf.fit] || 'inherit' }}>{cf.fit}</td>
                     ))}
                   </tr>
                 ))}
