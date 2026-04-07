@@ -10,11 +10,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api\/anthropic/, ''),
       },
-      '/api/ahrefs': {
-        target: 'https://api.ahrefs.com',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api\/ahrefs/, ''),
-      },
     },
   },
 })
