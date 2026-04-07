@@ -247,6 +247,18 @@ async function callClaude({ apiKey, system, user, economy = false, noTools = fal
   const maxTokens = economy ? CLAUDE_MAX_TOKENS_ECONOMY : CLAUDE_MAX_TOKENS_FULL
   const systemFinal = economy ? `${system}${ECONOMY_SYSTEM_SUFFIX}` : system
 
+  // Track the best JSON candidate across all turns.
+  // Claude sometimes outputs JSON in a tool_use turn (text + tool_use in same response),
+  // then ends with a brief acknowledgment that has no JSON. Without this we'd return
+  // the acknowledgment and hit "No JSON object found in response".
+  let bestJsonCandidate = ''
+
+  const pickBest = (turnText) => {
+    const t = turnText.trim()
+    if (t.includes('{')) bestJsonCandidate = t
+    return t
+  }
+
   for (let turn = 0; turn < maxTurns; turn++) {
     const body = {
       model: 'claude-sonnet-4-20250514',
@@ -268,12 +280,17 @@ async function callClaude({ apiKey, system, user, economy = false, noTools = fal
 
     const data = await res.json()
     const textBlocks = (data.content || []).filter(c => c.type === 'text')
+    const turnText = textBlocks.map(b => b.text).join('\n')
 
     if (data.stop_reason === 'end_turn') {
-      return textBlocks.map(b => b.text).join('\n')
+      const t = pickBest(turnText)
+      return t || bestJsonCandidate
     }
 
     if (data.stop_reason === 'tool_use') {
+      // Capture any JSON that Claude emitted alongside this tool_use turn
+      pickBest(turnText)
+
       // Add assistant turn
       messages = [...messages, { role: 'assistant', content: data.content }]
 
@@ -283,18 +300,20 @@ async function callClaude({ apiKey, system, user, economy = false, noTools = fal
         .map(tu => ({
           type: 'tool_result',
           tool_use_id: tu.id,
-          content: tu.type === 'web_search_20250305' || tu.name === 'web_search'
+          content: tu.name === 'web_search'
             ? (tu.content || 'Search executed.')
             : JSON.stringify(tu.input || {}),
         }))
 
       messages = [...messages, { role: 'user', content: toolResults }]
     } else {
-      // max_tokens or other stop — return whatever text we have
-      return textBlocks.map(b => b.text).join('\n')
+      // max_tokens or other stop — return best candidate
+      const t = pickBest(turnText)
+      return t || bestJsonCandidate
     }
   }
 
+  if (bestJsonCandidate) return bestJsonCandidate
   throw new Error('Maximum tool-use turns reached. Try again.')
 }
 
