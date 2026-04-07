@@ -151,6 +151,33 @@ body {
 }
 .config-wide input { min-width: 240px; }
 
+/* ─── Competitor auto-detect row ────────────────────────────────────────── */
+.comp-detect-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.comp-detect-row input {
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; outline: none; background: white; min-width: 130px; flex: 1;
+}
+.comp-detect-row input:focus {
+  border-color: var(--brand); box-shadow: 0 0 0 2px rgba(91,33,182,0.1);
+}
+.detect-comp-btn {
+  padding: 7px 14px; background: var(--brand-pale); color: var(--brand);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+  transition: background var(--transition), border-color var(--transition);
+  flex-shrink: 0;
+}
+.detect-comp-btn:hover:not(:disabled) { background: var(--brand-pale); border-color: var(--brand); }
+.detect-comp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.spinner-detect {
+  width: 11px; height: 11px; border: 2px solid rgba(91,33,182,0.25);
+  border-top-color: var(--brand); border-radius: 50%; display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+
 .config-toggle {
   flex-direction: column; align-items: flex-start;
   gap: 6px; min-width: 280px; max-width: 420px;
@@ -443,6 +470,7 @@ body {
 .geo-finding-box label { font-size: 11px; font-weight: 700; color: var(--teal-dark); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
 .geo-finding-box p { color: #134e4a; font-style: italic; }
 .geo-advantage { font-size: 11px; color: var(--gold-dark); background: var(--gold-light); padding: 2px 8px; border-radius: 99px; }
+.geo-verbatim { font-size: 11px; color: var(--text-2); font-style: italic; margin-top: 4px; width: 100%; }
 
 /* ─── GEO tip row ───────────────────────────────────────────────────────── */
 .geo-tip-row span { color: var(--teal-dark); font-weight: 500; }
@@ -455,6 +483,7 @@ td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vert
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--brand-light); }
 .not-ranking { color: #ef4444; font-weight: 600; }
+.ranking-yes { color: var(--teal-dark); font-weight: 600; }
 .table-cell-finding { max-width: 320px; font-size: 12px; color: var(--text-2); }
 
 .cv-split { margin-top: 4px; }

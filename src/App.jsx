@@ -226,13 +226,13 @@ function extractJSON(text) {
 
 const CLAUDE_MAX_TOKENS_FULL = 20000
 const CLAUDE_MAX_TOKENS_ECONOMY = 10000
-const CLAUDE_TOOL_TURNS_FULL = 10
-const CLAUDE_TOOL_TURNS_ECONOMY = 6
+const CLAUDE_TOOL_TURNS_FULL = 25
+const CLAUDE_TOOL_TURNS_ECONOMY = 8
 
 const ECONOMY_SYSTEM_SUFFIX = `
 ECONOMY MODE: Use web search efficiently (fewer redundant queries). Obey this tab's OUTPUT RULES exactly. No prose outside the JSON object.`
 
-async function callClaude({ apiKey, system, user, economy = false }) {
+async function callClaude({ apiKey, system, user, economy = false, noTools = false }) {
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': apiKey,
@@ -240,7 +240,7 @@ async function callClaude({ apiKey, system, user, economy = false }) {
     'anthropic-dangerous-direct-browser-access': 'true',
   }
 
-  const tools = [{ type: 'web_search_20250305', name: 'web_search' }]
+  const tools = noTools ? null : [{ type: 'web_search_20250305', name: 'web_search' }]
 
   let messages = [{ role: 'user', content: user }]
   const maxTurns = economy ? CLAUDE_TOOL_TURNS_ECONOMY : CLAUDE_TOOL_TURNS_FULL
@@ -253,7 +253,7 @@ async function callClaude({ apiKey, system, user, economy = false }) {
       max_tokens: maxTokens,
       system: systemFinal,
       messages,
-      tools,
+      ...(tools ? { tools } : {}),
     }
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -305,6 +305,10 @@ function buildTab1Prompts(product, industry, competitors) {
   return {
     system: `
 You surface reality. You do not generate it.
+You are an autonomous research agent, not a one-shot responder.
+You decide how many searches to run based on what you find.
+If a search reveals something important, follow that thread.
+You stop only when you are confident you have found everything material.
 Your job: search the live web right now and extract what actually exists —
 real G2 reviews, real Reddit threads, real pricing pages, real announcements.
 Not what competitors claim. What buyers actually say about them.
@@ -322,21 +326,30 @@ Return only valid JSON. No markdown. Start with {
     user: `
 Surface real competitive intelligence for ${product} in ${industry}.
 Competitors to research: ${compList.join(', ') || '(none listed)'}
-Analyse the first 2 competitors only.
 
-Search now — extract only what you actually find:
-1. "${compList[0] || 'competitor'} pricing OR features 2026" — what changed and when?
-2. "${compList[0] || 'competitor'}" site:g2.com — copy 2-3 verbatim 1-star and 2-star review excerpts
-3. "${compList[1] || compList[0] || 'competitor'} vs ${product}" site:reddit.com OR site:g2.com — what do real buyers say?
-4. "${product}" site:g2.com OR site:capterra.com — what do customers love and hate? Verbatim.
-5. "best ${industry} tool 2026" — who appears in top results? Which reviewers recommend whom?
-6. "${compList[0] || 'competitor'} alternative 2026" — who is buyers' next choice after them?
+Run the SAME set of searches for EACH competitor. Do not skip one.
+
+FOR COMPETITOR 1 — "${compList[0] || 'competitor'}":
+A. "${compList[0] || 'competitor'} pricing OR features 2026" — what changed and when?
+B. "${compList[0] || 'competitor'}" site:g2.com — copy 2-3 verbatim 1-star and 2-star review excerpts
+C. "${compList[0] || 'competitor'} vs ${product}" site:reddit.com OR site:g2.com — what do real buyers say?
+D. "${compList[0] || 'competitor'} alternative 2026" — who do buyers switch to after them?
+
+FOR COMPETITOR 2 — "${compList[1] || compList[0] || 'competitor'}":
+A. "${compList[1] || compList[0] || 'competitor'} pricing OR features 2026" — what changed and when?
+B. "${compList[1] || compList[0] || 'competitor'}" site:g2.com — copy 2-3 verbatim 1-star and 2-star review excerpts
+C. "${compList[1] || compList[0] || 'competitor'} vs ${product}" site:reddit.com OR site:g2.com — what do real buyers say?
+D. "${compList[1] || compList[0] || 'competitor'} alternative 2026" — who do buyers switch to after them?
+
+SHARED SEARCHES:
+E. "${product}" site:g2.com OR site:capterra.com — what do customers love and hate? Verbatim.
+F. "best ${industry} tool 2026" — who appears in top results and why?
 
 For every finding: record the exact source URL and a verbatim quote (up to 25 words).
 If you cannot find a real source — omit that field. Do not fill gaps with inference.
 
 OUTPUT RULES:
-- competitor_intelligence: exactly 2 items (one per competitor)
+- competitor_intelligence: exactly 2 items — one complete entry per competitor, same fields for each
 - Every descriptive string: up to 40 words. Verbatim quotes: up to 25 words, cut with …
 - Complete the full JSON object — use null for any field you cannot fill from real sources.
 - Nothing before or after the JSON.
@@ -355,7 +368,7 @@ Return ONLY this JSON:
       "source": "<exact URL — required>"
     }
   ],
-  "whitespace_opportunity": "<gap no competitor fills well — buyers keep asking for it, cite the thread or review>",
+  "whitespace_opportunity": "<gap neither competitor fills well — buyers keep asking for it, cite the thread or review>",
   "market_signal": "<one real ${industry} trend or shift in 2026 — include source URL>",
   "summary": "<the single most important real finding from this research. What ${product} must do next. 2-3 sentences.>"
 }
@@ -384,20 +397,28 @@ Return only valid JSON. No markdown. Start with {
 `,
     user: `
 Real buyer voice for ${product} and competitors in ${industry}.
-IMPORTANT: Focus only on the first 2 competitors. Ignore any others.
-Run these searches now:
-1. site:reddit.com "${product}" complaint OR problem OR switching OR overpriced 2025 OR 2026
-2. site:reddit.com "${compList[0] || 'competitor'}" pricing OR cancel OR frustrating OR "switched to"
-3. "${product}" site:g2.com — read 1 and 2 star reviews; copy exact phrases buyers use
-4. "${compList[0] || 'competitor'}" site:g2.com — read 1 and 2 star reviews; copy exact phrases
+Run the SAME searches for EACH competitor. Do not skip one.
+
+FOR COMPETITOR 1 — "${compList[0] || 'competitor'}":
+1a. site:reddit.com "${compList[0] || 'competitor'}" pricing OR cancel OR frustrating OR "switched to"
+1b. "${compList[0] || 'competitor'}" site:g2.com — read 1 and 2 star reviews; copy exact buyer phrases
+
+FOR COMPETITOR 2 — "${compList[1] || compList[0] || 'competitor'}":
+2a. site:reddit.com "${compList[1] || compList[0] || 'competitor'}" pricing OR cancel OR frustrating OR "switched to"
+2b. "${compList[1] || compList[0] || 'competitor'}" site:g2.com — read 1 and 2 star reviews; copy exact buyer phrases
+
+SHARED SEARCHES:
+3. site:reddit.com "${product}" complaint OR problem OR switching OR overpriced 2025 OR 2026
+4. "${product}" site:g2.com — read 1 and 2 star reviews; copy exact phrases buyers use
 5. "${industry} tool" recommendation site:reddit.com — what do people recommend and why?
 6. "${product} review" site:trustpilot.com OR site:capterra.com — any patterns in negative reviews?
+
 For each finding: record exact URL, subreddit or page, verbatim quote, job title if shown.
 If no URL — omit the finding.
 OUTPUT RULES:
+- competitor_complaints: at least 2 entries per competitor (same number for each)
 - top_pain_points: up to 6 items
 - what_buyers_wish_existed: up to 5 items
-- competitor_complaints: up to 4 items across the first 2 competitors
 - buyer_language: up to 5 items
 - Every descriptive string: up to 40 words. Verbatim quotes: up to 25 words.
 - Complete the full JSON — use null for any field you cannot fill from real sources.
@@ -465,22 +486,27 @@ IMPORTANT: Compare against only the first 2 competitors. Ignore any others.
 
 SEO — run these searches now:
 1. Identify the 5 most important buyer search queries for ${industry} (think: what someone types before buying)
-2. Search each query — record who ranks positions 1-5, whether ${product} appears, whether competitors appear
+2. Search each query — record who ranks positions 1-5, whether ${product} appears, whether each competitor appears
 3. Search "${product} alternative" — what tools appear? What do people say?
 4. Search "${product} vs ${compList[0] || 'competitor'}" — what comparison content exists?
-5. Search "${compList[0] || 'competitor'} blog site:${(compList[0] || 'competitor').toLowerCase().replace(/\s/g,'')}.com 2026" — what content are they producing?
+5. Search "${product} vs ${compList[1] || compList[0] || 'competitor'}" — what comparison content exists?
+6. Search "${compList[0] || 'competitor'} blog 2026" — what content topics are they publishing?
+7. Search "${compList[1] || compList[0] || 'competitor'} blog 2026" — what content topics are they publishing?
 
-GEO — run these searches now:
-1. Search Perplexity with the top buyer question for ${industry} — copy the EXACT AI answer verbatim
-2. Search Google for the same query — does an AI Overview appear? Copy it verbatim if so
+GEO — run the SAME queries for BOTH competitors:
+1. Search Perplexity with the top buyer question for ${industry} — copy the EXACT AI answer verbatim; note which competitors are cited
+2. Search Google for the same query — does an AI Overview appear? Copy it verbatim; note which competitors appear
 3. Search "${product}" on Perplexity — does it appear? What does it say exactly?
-4. Search "best ${industry} tool" on Perplexity — is ${product} mentioned? Quote exactly
+4. Search "${compList[0] || 'competitor'}" on Perplexity — does it appear? What does it say?
+5. Search "${compList[1] || compList[0] || 'competitor'}" on Perplexity — does it appear? What does it say?
+6. Search "best ${industry} tool" on Perplexity — which tools are ranked and why?
 
 Report exactly what you find. Verbatim. Never invent AI quotes.
 
 OUTPUT RULES:
-- seo_gaps: up to 6 items
-- content_gaps: up to 5 items
+- seo_gaps: up to 6 items — include ranking data for BOTH competitors in each row
+- content_gaps: up to 5 items — note which competitor has each gap
+- competitor_scores: exactly 2 entries — one per competitor, same fields for each
 - GEO verbatim quotes: copy exactly, up to 40 words each
 - Every other string: up to 40 words
 - CRITICAL: Complete the full JSON object — use null for any field you cannot fill. Never truncate mid-object.
@@ -493,7 +519,10 @@ Return ONLY this JSON:
       "query": "<exact buyer search query>",
       "monthly_volume": "<number or honest estimate>",
       "who_ranks": ["<tool 1>", "<tool 2>", "<tool 3>"],
-      "product_ranking": "<exact position or 'not ranking'>",
+      "product_ranking": "<exact position e.g. 'Position 4' or 'not ranking'>",
+      "competitor_rankings": [
+        { "competitor": "<name>", "ranking": "<exact position or 'not ranking'>" }
+      ],
       "opportunity": "<why this gap matters for ${product} — one clear sentence>"
     }
   ],
@@ -523,6 +552,10 @@ Return ONLY this JSON:
       {
         "competitor": "<name>",
         "score": "<X out of 4>",
+        "perplexity": "cited as top|mentioned|not mentioned",
+        "perplexity_verbatim": "<exact words Perplexity said about this competitor — or null>",
+        "google_ai": "cited|mentioned|not mentioned",
+        "chatgpt": "cited as top|mentioned|not mentioned",
         "why_they_appear": "<one evidence-based sentence on why AI tools cite them>"
       }
     ]
@@ -540,6 +573,12 @@ function buildTab4Prompts(product, industry, tab1Output, tab2Output, tab3Output,
   return {
     system: `
 You surface reality. You do not generate it.
+You are an autonomous strategy agent.
+Before generating recommendations evaluate the four reports.
+If any report is thin, generic, or missing key data —
+run additional web searches now before proceeding.
+Do not generate recommendations on insufficient data.
+Fix the data first. You decide what to search. Run it before writing.
 You are Chief Strategy Officer advising ${product} leadership.
 You have four fresh intelligence reports — real findings from live web research.
 Your job is decisions grounded in what was actually found, not observations.
@@ -673,6 +712,7 @@ Return ONLY this JSON:
   "verdict": "Would click|Would not click|Saves for later|Forwards to team|Deletes immediately",
   "first_reaction": "<3 words — raw and honest>",
   "inner_monologue": "<4 sentences. Reference specific words from copy. Connect to your pain. Brutally honest.>",
+  "strategy_alignment_gap": "<one sentence: does this copy address your primary pain from the context above, or does it miss the point entirely?>",
   "what_worked": ["<specific phrase and exactly why>", "<another>"],
   "what_didnt": ["<specific phrase and exactly why it missed>", "<another>"],
   "the_one_thing_missing": "<the single line that would make you stop — one sentence>",
@@ -1215,6 +1255,12 @@ function Tab3Result({ data, productLabel }) {
   const chatgptLabel = gv.chatgpt_score ?? gv.chatgpt
   const bingLabel = gv.bing_copilot_score ?? gv.bing_copilot
   const showSeverity = (data.seo_gaps || []).some(g => g.gap_severity)
+  // Detect competitor columns from the first gap row that has competitor_rankings
+  const compCols = (data.seo_gaps || []).reduce((acc, g) => {
+    if (!acc.length && Array.isArray(g.competitor_rankings) && g.competitor_rankings.length)
+      return g.competitor_rankings.map(cr => cr.competitor)
+    return acc
+  }, [])
   return (
     <div className="result-section">
       <section>
@@ -1227,51 +1273,37 @@ function Tab3Result({ data, productLabel }) {
                 <th>Volume</th>
                 <th>Top Rankers</th>
                 <th>{rankingCol}</th>
+                {compCols.map(c => <th key={c}>{c}</th>)}
                 {showSeverity && <th>Severity</th>}
                 <th>Opportunity</th>
               </tr>
             </thead>
             <tbody>
-              {(data.seo_gaps || []).map((g, i) => (
-                <tr key={i}>
-                  <td><strong>{g.query}</strong></td>
-                  <td>{g.monthly_volume}</td>
-                  <td>{Array.isArray(g.top_rankers)
-                    ? g.top_rankers.join(', ')
-                    : (Array.isArray(g.who_ranks) ? g.who_ranks.join(', ') : g.top_rankers || g.who_ranks || g.competitor_ranking)}</td>
-                  <td className="not-ranking">{g.product_ranking}</td>
-                  {showSeverity && <td>{g.gap_severity ? <Badge urgency={g.gap_severity} /> : '—'}</td>}
-                  <td>{g.opportunity}</td>
-                </tr>
-              ))}
+              {(data.seo_gaps || []).map((g, i) => {
+                const isRanking = g.product_ranking && !g.product_ranking.toLowerCase().includes('not')
+                return (
+                  <tr key={i}>
+                    <td><strong>{g.query}</strong></td>
+                    <td>{g.monthly_volume}</td>
+                    <td>{Array.isArray(g.top_rankers)
+                      ? g.top_rankers.join(', ')
+                      : (Array.isArray(g.who_ranks) ? g.who_ranks.join(', ') : g.top_rankers || g.who_ranks || g.competitor_ranking)}</td>
+                    <td className={isRanking ? 'ranking-yes' : 'not-ranking'}>{g.product_ranking}</td>
+                    {compCols.map(comp => {
+                      const cr = (g.competitor_rankings || []).find(r => r.competitor === comp)
+                      const compRanking = cr?.ranking || '—'
+                      const compIsRanking = cr?.ranking && !cr.ranking.toLowerCase().includes('not')
+                      return <td key={comp} className={compIsRanking ? '' : 'not-ranking'}>{compRanking}</td>
+                    })}
+                    {showSeverity && <td>{g.gap_severity ? <Badge urgency={g.gap_severity} /> : '—'}</td>}
+                    <td>{g.opportunity}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </section>
-
-      {(data.geo_searches_run || []).length > 0 && (
-        <section>
-          <h3 className="section-title">GEO Searches Run</h3>
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr><th>Query</th><th>Platform</th><th>Product</th><th>Who Appeared</th><th>Exact Finding</th></tr>
-              </thead>
-              <tbody>
-                {data.geo_searches_run.map((s, i) => (
-                  <tr key={i}>
-                    <td><strong>{s.query}</strong></td>
-                    <td>{s.platform}</td>
-                    <td className={s.product_mentioned ? '' : 'not-ranking'}>{s.product_position}</td>
-                    <td>{(s.who_appeared || []).join(', ')}</td>
-                    <td className="table-cell-finding">{s.exact_finding}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
 
       <div className="two-col">
         <section>
@@ -1333,13 +1365,15 @@ function Tab3Result({ data, productLabel }) {
           {(gv.competitor_geo_scores || gv.competitor_scores || []).map((c, i) => (
             <div key={i} className="competitor-geo-row">
               <span>{c.competitor}</span>
-              {c.strongest_platform && <span className="geo-tag">{c.strongest_platform}</span>}
               {(c.overall || c.score) && <span className="geo-tag">{c.overall || c.score}</span>}
               {c.perplexity && <span className="geo-tag">Perplexity: {c.perplexity}</span>}
               {c.google_ai && <span className="geo-tag">Google AI: {c.google_ai}</span>}
               {c.chatgpt && <span className="geo-tag">ChatGPT: {c.chatgpt}</span>}
               {(c.why_they_rank || c.why_they_appear || c.geo_advantage) && (
                 <span className="geo-advantage">{c.why_they_rank || c.why_they_appear || c.geo_advantage}</span>
+              )}
+              {c.perplexity_verbatim && (
+                <span className="geo-verbatim">"{c.perplexity_verbatim}"</span>
               )}
             </div>
           ))}
@@ -1889,6 +1923,7 @@ export default function App() {
 
   const [loading, setLoading] = useState({ 1: false, 2: false, 3: false, 4: false, 5: false, cv: false })
   const [errors, setErrors] = useState({})
+  const [detectingComps, setDetectingComps] = useState(false)
 
   // Copy validation
   const [copyText, setCopyText] = useState('')
@@ -1897,6 +1932,31 @@ export default function App() {
 
   const setLoad = (tab, val) => setLoading(prev => ({ ...prev, [tab]: val }))
   const setErr = (tab, msg) => setErrors(prev => ({ ...prev, [tab]: msg }))
+
+  const autoFillCompetitors = useCallback(async () => {
+    if (!apiKey || !product || !industry) return
+    setDetectingComps(true)
+    try {
+      const raw = await callClaude({
+        apiKey,
+        system: 'You find real market information using web search. Return only valid JSON. No markdown. Start with {',
+        user: `Search the web: who are the top 2 direct competitors of "${product}" in ${industry}?
+Return ONLY this JSON (no other text):
+{"competitors": ["<competitor 1 name>", "<competitor 2 name>"]}`,
+        economy: true,
+      })
+      const data = extractJSON(raw)
+      if (Array.isArray(data.competitors) && data.competitors.length >= 1) {
+        setCompetitors(prev => {
+          const next = [...prev]
+          if (data.competitors[0]) next[0] = data.competitors[0]
+          if (data.competitors[1]) next[1] = data.competitors[1]
+          return next
+        })
+      }
+    } catch { /* silently ignore — user can fill manually */ }
+    finally { setDetectingComps(false) }
+  }, [apiKey, product, industry])
 
   const runTab1 = useCallback(async () => {
     if (!apiKey) return setErr(1, 'API key required')
@@ -1970,7 +2030,7 @@ export default function App() {
         contentType,
         copyText,
       )
-      const raw = await callClaude({ apiKey, system, user, economy: economyMode })
+      const raw = await callClaude({ apiKey, system, user, economy: economyMode, noTools: true })
       setCvData(extractJSON(raw))
     } catch (e) {
       setErr('cv', e.message)
@@ -2110,20 +2170,31 @@ export default function App() {
               placeholder="e.g. B2B analytics, HR tech, compliance SaaS"
             />
           </div>
-          {competitorCount.map(i => (
-            <div key={i} className="config-field">
-              <label>Competitor {i + 1}</label>
-              <input
-                value={competitors[i] || ''}
-                placeholder="Optional"
-                onChange={e => {
-                  const next = [...competitors]
-                  next[i] = e.target.value
-                  setCompetitors(next)
-                }}
-              />
+          <div className="config-field">
+            <label>Competitors</label>
+            <div className="comp-detect-row">
+              {competitorCount.map(i => (
+                <input
+                  key={i}
+                  value={competitors[i] || ''}
+                  placeholder={`Competitor ${i + 1}`}
+                  onChange={e => {
+                    const next = [...competitors]
+                    next[i] = e.target.value
+                    setCompetitors(next)
+                  }}
+                />
+              ))}
+              <button
+                className="detect-comp-btn"
+                onClick={autoFillCompetitors}
+                disabled={detectingComps || !product || !industry}
+                title={!product || !industry ? 'Enter product and industry first' : 'Auto-detect top competitors'}
+              >
+                {detectingComps ? <><span className="spinner spinner-detect" /> Detecting…</> : '⚡ Auto-detect'}
+              </button>
             </div>
-          ))}
+          </div>
           <div className="config-field config-toggle">
             <label className="config-toggle-label">
               <input
