@@ -27,6 +27,51 @@ body {
 }
 .logo-row h1 { font-size: 22px; font-weight: 700; line-height: 1.2; }
 .header-sub { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+.logo-row { flex-wrap: wrap; }
+
+/* Run All button */
+.run-all-wrap { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.run-all-error { font-size: 12px; color: #fca5a5; max-width: 220px; }
+.run-all-btn {
+  padding: 10px 20px; background: white; color: #3b28cc;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; transition: opacity 0.15s; flex-shrink: 0;
+}
+.run-all-btn:hover:not(:disabled) { opacity: 0.88; }
+.run-all-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.spinner-dark {
+  border-color: rgba(59,40,204,0.3) !important;
+  border-top-color: #3b28cc !important;
+}
+
+/* Progress bar */
+.run-all-progress {
+  display: flex; align-items: center; gap: 0;
+  background: #1e1b4b; padding: 10px 24px; overflow-x: auto;
+}
+.progress-step {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600; padding: 6px 16px;
+  border-radius: 99px; white-space: nowrap; margin-right: 8px;
+}
+.step-pending { color: rgba(255,255,255,0.4); }
+.step-running { color: white; background: rgba(255,255,255,0.15); }
+.step-done { color: #86efac; }
+.step-icon {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  background: rgba(255,255,255,0.15); flex-shrink: 0;
+}
+.step-done .step-icon { background: #166534; color: white; }
+.spinner-sm {
+  width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%; display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Done state on tab numbers */
+.tab-num-done { background: #3b28cc !important; color: white !important; }
 
 /* ─── API key banner ────────────────────────────────────────────────────── */
 .api-banner {
@@ -205,12 +250,52 @@ body {
   background: #d1fae5; padding: 4px 10px; border-radius: 6px; display: inline-block;
 }
 
+/* ─── Market signals ────────────────────────────────────────────────────── */
+.market-signals-box {
+  background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;
+  padding: 14px 16px; font-size: 13px;
+}
+.market-signals-box strong { display: block; margin-bottom: 8px; color: #92400e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.market-signals-box ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: #7c2d12; }
+
+/* ─── Pain card meta ────────────────────────────────────────────────────── */
+.pain-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.reviewer-context { font-size: 11px; color: #6b7280; font-style: italic; }
+
+/* ─── Complaint header ──────────────────────────────────────────────────── */
+.complaint-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.complaint-card blockquote { font-style: italic; color: #4b5563; border-left: 3px solid #e5e7eb; padding-left: 10px; margin: 8px 0; font-size: 13px; }
+
+/* ─── Language cards ────────────────────────────────────────────────────── */
+.language-cards { display: flex; flex-direction: column; gap: 10px; }
+.language-card { background: white; border-radius: 8px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.lang-context { font-size: 12px; color: #6b7280; margin-top: 6px; }
+.lang-use { font-size: 12px; color: #3b28cc; font-weight: 500; margin-top: 4px; }
+
 /* ─── Language chips ────────────────────────────────────────────────────── */
 .language-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   background: #ede9fe; color: #3b28cc; padding: 5px 12px;
   border-radius: 99px; font-size: 12px; font-weight: 500;
 }
+
+/* ─── Content gap rows ──────────────────────────────────────────────────── */
+.content-gap-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px;
+}
+.content-gap-row:last-child { border-bottom: none; }
+
+/* ─── GEO finding box ───────────────────────────────────────────────────── */
+.geo-finding-box {
+  background: #f9fafb; border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: 13px;
+}
+.geo-finding-box label { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+.geo-finding-box p { color: #374151; font-style: italic; }
+.geo-advantage { font-size: 11px; color: #92400e; background: #fff7ed; padding: 2px 8px; border-radius: 99px; }
+
+/* ─── GEO tip row ───────────────────────────────────────────────────────── */
+.geo-tip-row span { color: #065f46; font-weight: 500; }
 
 /* ─── Table ─────────────────────────────────────────────────────────────── */
 .table-wrapper { overflow-x: auto; }
@@ -358,6 +443,61 @@ tr:hover td { background: #f9fafb; }
 }
 .alignment-gap-box label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; display: block; margin-bottom: 6px; }
 .alignment-gap-box p { font-size: 13px; color: #7c2d12; }
+
+/* ─── Breaking context ───────────────────────────────────────────────────── */
+.breaking-context-box {
+  background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;
+  padding: 14px 16px;
+}
+.breaking-context-box strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9f1239; margin-bottom: 6px; }
+.breaking-context-box p { font-size: 13px; color: #881337; }
+
+/* ─── Effort / Impact tags ───────────────────────────────────────────────── */
+.effort-tag, .impact-tag {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 99px; background: #f3f4f6; color: #6b7280;
+}
+
+/* ─── Why now ────────────────────────────────────────────────────────────── */
+.rec-why-now {
+  background: #fffbeb; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+}
+.rec-why-now label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #92400e; display: block; margin-bottom: 4px; }
+.rec-why-now p { font-size: 13px; color: #78350f; }
+
+/* ─── Slack message box ──────────────────────────────────────────────────── */
+.slack-message-box {
+  background: #1a1d21; border-radius: 10px; overflow: hidden;
+}
+.slack-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; background: #222529;
+}
+.slack-header strong { color: #e8e8e8; font-size: 13px; }
+.copy-btn {
+  padding: 4px 12px; background: #007a5a; color: white; border: none;
+  border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.copy-btn:hover { background: #006548; }
+.slack-pre {
+  padding: 16px; font-family: inherit; font-size: 13px; color: #d1d2d3;
+  white-space: pre-wrap; margin: 0; line-height: 1.7;
+}
+
+/* ─── First reaction ─────────────────────────────────────────────────────── */
+.first-reaction-box {
+  background: #1a1a2e; border-radius: 10px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.first-reaction-box label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.5); white-space: nowrap; }
+.first-reaction-box strong { font-size: 18px; color: white; }
+
+/* ─── One thing missing ──────────────────────────────────────────────────── */
+.one-thing-box {
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 14px 16px;
+}
+.one-thing-box label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; display: block; margin-bottom: 6px; }
+.one-thing-box p { font-size: 14px; color: #991b1b; font-weight: 500; }
 
 /* ─── Rewrite ────────────────────────────────────────────────────────────── */
 .rewrite-box {

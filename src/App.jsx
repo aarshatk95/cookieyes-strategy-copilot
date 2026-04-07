@@ -161,188 +161,320 @@ async function fetchAhrefsData({ ahrefsKey, product, competitors }) {
 
 function buildTab1Prompts(product, industry, competitors) {
   return {
-    system: `You are a competitive intelligence analyst for a B2B SaaS company.
-You have live web search. Search extensively before responding.
-Be specific. Reference actual feature names, pricing numbers, and real review quotes.
-Return only valid JSON. Start with {`,
-    user: `Analyse competitors for ${product} (${industry}).
-Competitors: ${competitors.join(', ')}
+    system: `You are a senior competitive intelligence analyst specialising in B2B SaaS.
+You have live web search. You search extensively — multiple queries per competitor.
+You quote real people. You name real sources. You find things the company does not know yet.
+You never make up data. If you cannot find something, say not found.
+Return only valid JSON. No markdown. Start with {`,
+    user: `Do a deep competitive intelligence sweep for ${product} (${industry}).
+Competitors to research: ${competitors.join(', ')}
 
-For each competitor search their feature page, pricing page,
-G2 reviews from last 6 months, and any 2026 news or launches.
-Also search for ${product} on the same sources.
+For EACH competitor run these searches:
+1. "${competitors[0]} new features 2026" — what did they just ship?
+2. "${competitors[0]} pricing 2026" — any pricing changes?
+3. "${competitors[0]} G2 reviews 2026" — what are real users saying RIGHT NOW?
+4. "${competitors[0]} vs ${product}" — how do buyers compare them?
+5. "${product} reviews" — what do real ${product} customers say?
 
-Return ONLY:
+Repeat for each competitor. Also search:
+- "GDPR consent tool news 2026"
+- "cookie consent platform update 2026"
+
+Look specifically in these G2 complaints collected from real Cookiebot reviews:
+- Pricing per domain is confusing and expensive for multi-domain setups
+- Confusing relationship between Cookiebot and Usercentrics — multiple UIs
+- Support response times are 3-5 business days
+- Scan frequency tied to pricing even for stable sites
+- Cannot change account email address
+Use these as starting signals but find additional complaints and evidence via web search.
+
+Return ONLY this JSON — be specific, use real quotes, name real sources:
 {
   "competitor_intelligence": [
     {
       "competitor": "<name>",
-      "what_changed_recently": "<specific recent change>",
-      "feature_gaps_they_have": ["<they offer, we do not>"],
-      "feature_gaps_we_have": ["<we offer, they lack>"],
-      "top_user_complaint": "<real G2 quote>",
-      "recommended_action": "<one specific ${product} action>",
-      "source": "<where found>"
+      "what_changed_recently": "<specific feature or pricing change with date if found>",
+      "feature_gaps_they_have": [
+        "<specific feature they offer with detail>",
+        "<another specific feature>"
+      ],
+      "feature_gaps_we_have": [
+        "<specific ${product} advantage with evidence>",
+        "<another advantage>"
+      ],
+      "top_user_complaint": "<exact quote from a real G2 or Reddit review — use quotation marks>",
+      "second_complaint": "<another real complaint quote>",
+      "buyer_profile": "<who actually buys this tool based on G2 reviewer job titles>",
+      "recommended_action": "<one specific, actionable ${product} response to this competitor>",
+      "urgency": "high|medium|low",
+      "source": "<specific URL or platform where you found this>"
     }
   ],
-  "summary": "<2 sentence competitive picture>"
+  "market_signals": [
+    "<important trend or announcement in the cookie consent space in 2026>",
+    "<another market signal>"
+  ],
+  "summary": "<3 sentences — the most important competitive finding and what ${product} should do about it>"
 }`,
   }
 }
 
 function buildTab2Prompts(product, competitors) {
   return {
-    system: `You are a buyer intelligence analyst. You find what buyers actually say in communities and reviews.
-Quote real language. Name specific sources. Return only valid JSON. Start with {`,
-    user: `Find live buyer signals for ${product} and similar tools.
+    system: `You are a buyer intelligence analyst who reads thousands of online conversations.
+You find what buyers actually say — not marketing copy, not company claims.
+Real words from real people in real communities.
+You never paraphrase. You quote directly. You name the exact source.
+Return only valid JSON. No markdown. Start with {`,
+    user: `Find the raw, unfiltered voice of buyers evaluating cookie consent tools.
 
-Search: Reddit r/gdpr, r/webdev, r/privacy, r/marketing, r/sysadmin — posts from last 60 days.
-Search: G2 one and two star reviews for ${competitors.join(', ')}.
-Search: WordPress.org reviews for cookie consent plugins.
-Search: Any forums or communities discussing GDPR tools.
+Search ALL of these — do not skip any:
+Reddit searches:
+- site:reddit.com "cookie consent tool" 2026
+- site:reddit.com "Cookiebot" complaint OR problem OR expensive
+- site:reddit.com "OneTrust" frustrating OR difficult OR price
+- site:reddit.com "GDPR plugin" recommendation
+- site:reddit.com r/webdev "cookie banner" 2026
+- site:reddit.com r/gdpr "consent management" 2026
+- site:reddit.com r/marketing "cookie consent"
 
-Return ONLY:
+Review searches:
+- "${competitors[0]} reviews" site:g2.com
+- "${competitors[1]} reviews" site:g2.com
+- "${product} reviews" site:g2.com
+- "cookie consent plugin" site:wordpress.org reviews
+
+Community searches:
+- "cookie consent" site:community.cookielaw.org
+- "GDPR compliance tool" recommendation 2026
+- "best cookie consent" site:dev.to OR site:hashnode.com
+
+For each finding note: exact quote, platform, date if visible, job title of reviewer if shown.
+
+Return ONLY this JSON:
 {
   "top_pain_points": [
     {
-      "pain": "<specific pain in plain language>",
+      "pain": "<the pain in plain language — one clear sentence>",
       "frequency": "very common|common|occasional",
-      "buyer_quote": "<exact words from real post or review>",
-      "source": "<Reddit r/xxx or G2 or WordPress>"
+      "buyer_quote": "<exact words copied from the post or review — keep it verbatim>",
+      "reviewer_context": "<job title or company size if shown>",
+      "source": "<exact platform and subreddit or URL>"
     }
   ],
-  "what_buyers_wish_existed": ["<specific unmet need>"],
+  "what_buyers_wish_existed": [
+    {
+      "wish": "<specific capability or feature they are asking for>",
+      "evidence": "<exact quote showing this wish>",
+      "source": "<where>"
+    }
+  ],
   "competitor_complaints": [
     {
       "competitor": "<name>",
-      "complaint": "<specific complaint>",
-      "cookieyes_opportunity": "<how ${product} wins here>"
+      "complaint": "<specific complaint in buyer language>",
+      "frequency": "very common|common|occasional",
+      "exact_quote": "<verbatim from review or post>",
+      "cookieyes_opportunity": "<how ${product} specifically wins here — be concrete>"
     }
   ],
-  "buyer_language": ["<phrase buyers use ${product} should adopt>"]
+  "buyer_language": [
+    {
+      "phrase": "<exact phrase buyers use repeatedly>",
+      "context": "<what they mean when they say this>",
+      "use_in_copy": "<how ${product} should use this phrase>"
+    }
+  ],
+  "emerging_concerns_2026": [
+    "<new regulation, technology, or event that is changing what buyers need right now>"
+  ]
 }`,
   }
 }
 
 function buildTab3Prompts(product, competitors, ahrefsData = null) {
   const ahrefsSection = ahrefsData
-    ? `LIVE AHREFS DATA (use this as your primary SEO source — it is real, current data):
+    ? `LIVE AHREFS DATA — treat this as your primary SEO source:
 ${JSON.stringify(ahrefsData, null, 2)}
 
 `
     : ''
 
   return {
-    system: `You are an SEO and GEO visibility analyst for a B2B SaaS company.
-You have real Ahrefs data provided directly in the prompt and live web search for GEO.
-GEO means generative engine optimisation: visibility in AI search results like Perplexity, Google AI Overviews, and ChatGPT answers.
-When Ahrefs data is provided, use it as the authoritative SEO source. Return only valid JSON. Start with {`,
-    user: `${ahrefsSection}Compare SEO and GEO visibility for ${product} vs ${competitors.join(', ')}.
+    system: `You are a senior SEO and GEO analyst specialising in B2B SaaS visibility.
+GEO means generative engine optimisation — appearing in AI-generated answers on
+Perplexity, Google AI Overviews, ChatGPT, and similar tools.
+You have live web search. You search as an anonymous buyer with no brand preference.
+You report only what you actually find — not what should be there.
+Return only valid JSON. No markdown. Start with {`,
+    user: `${ahrefsSection}Run a complete SEO and GEO visibility analysis for ${product} vs ${competitors.join(', ')}.
 
 SEO ANALYSIS:
-1. Search for keyword gaps — high-volume queries where ${competitors.join(', ')} rank in top 10 but ${product} does not. Include estimated search volume.
-2. Compare estimated organic traffic for ${product} vs each competitor for the cookie consent keyword cluster.
-3. Identify content gaps: topic clusters competitors cover where ${product} has no published content.
-4. Compare referring domain counts if available.
+Search for each of these queries and note who ranks:
+- "best cookie consent tool"
+- "GDPR cookie consent plugin"
+- "cookie consent for WordPress"
+- "cookie consent manager GDPR CCPA"
+- "free cookie consent banner"
+- "cookie consent tool for agencies"
+- "Google Consent Mode v2 plugin"
+- "cookie consent tool pricing"
+For each query note: who ranks 1-3, whether ${product} appears, estimated volume if shown.
 
-GEO ANALYSIS via web search:
-1. Search Perplexity: "best cookie consent tool for GDPR" — which tools are cited in the AI answer?
-2. Search Google for the same query and check AI Overview — which tools appear?
-3. Search: "GDPR compliance guide cookie consent" on Perplexity — is ${product} mentioned?
-4. Search for ${product} mentions in AI-generated compliance tool recommendations.
+Then search:
+- "${competitors[0]} vs ${product}" — who wins this comparison content?
+- "${competitors[1]} vs ${product}" — same
+- "${product} alternative" — what comes up?
 
-Return ONLY:
+Content gap search:
+- What blog posts and guides has Cookiebot published that ${product} has not?
+- Search "Cookiebot blog 2026" and "OneTrust resources 2026"
+- Search "${product} blog" — what topics are they missing?
+
+GEO ANALYSIS — search as an anonymous buyer:
+1. Search Perplexity for: "best cookie consent tool for GDPR"
+   Record EXACTLY which tools appear and in what order.
+2. Search Perplexity for: "cookie consent tool recommendation"
+   Record EXACTLY what appears.
+3. Search Google for: "best cookie consent tool"
+   Does an AI Overview appear? What does it say? Who is cited?
+4. Search Perplexity for: "GDPR compliance tools for small business"
+   Is ${product} mentioned?
+5. Search for: "${product}" on Perplexity — what does it say about the product?
+
+Return ONLY this JSON:
 {
   "seo_gaps": [
     {
-      "query": "<keyword>",
+      "query": "<exact search query>",
       "monthly_volume": "<number or estimate>",
-      "competitor_ranking": "<competitor and position>",
-      "cookieyes_ranking": "<position or not ranking>",
-      "opportunity": "<why this matters>"
+      "top_rankers": ["<tool 1>", "<tool 2>", "<tool 3>"],
+      "cookieyes_ranking": "<position or not in top 10>",
+      "gap_severity": "high|medium|low",
+      "opportunity": "<specific why this matters for ${product}>"
     }
   ],
-  "content_gaps": ["<topic cluster ${product} is missing>"],
+  "content_gaps": [
+    {
+      "topic": "<topic competitors cover that ${product} does not>",
+      "competitor_who_has_it": "<name>",
+      "estimated_traffic_value": "high|medium|low"
+    }
+  ],
   "content_brief": {
-    "topic": "<highest priority gap topic>",
-    "target_keyword": "<keyword with highest volume>",
-    "recommended_title": "<H1 that ranks and appears in AI answers>",
+    "topic": "<single highest priority content gap to close first>",
+    "target_keyword": "<primary keyword — highest volume, most winnable>",
+    "secondary_keywords": ["<related>", "<related>"],
+    "recommended_title": "<H1 written to both rank on Google and get cited in Perplexity AI answers>",
+    "search_intent": "<what the buyer actually wants when they search this>",
     "what_to_cover": [
-      "<section 1 — answer the buyer question found on Reddit>",
-      "<section 2 — fill gap competitors have not addressed well>",
-      "<section 3 — ${product}-specific solution angle>"
+      "<section 1 — answer the specific question buyers ask on Reddit>",
+      "<section 2 — the angle competitors have not taken yet>",
+      "<section 3 — ${product}-specific solution with clear CTA>",
+      "<section 4 — FAQ block targeting long-tail queries>"
     ],
-    "beat_the_competition": "<how to cover this better than what Cookiebot or OneTrust have already written>",
+    "beat_the_competition": "<specific reason this will outperform what Cookiebot or OneTrust already have>",
+    "geo_optimisation_tip": "<one specific thing to include so AI answers cite this piece>",
     "geo_potential": "high|medium|low"
   },
   "geo_visibility": {
     "perplexity_score": "mentioned|not mentioned|cited as top choice",
+    "perplexity_exact_finding": "<exactly what Perplexity said when you searched>",
     "google_ai_overview": "mentioned|not mentioned|cited",
+    "google_ai_exact_finding": "<exactly what Google AI Overview said>",
     "competitor_geo_scores": [
-      { "competitor": "<name>", "perplexity": "<score>", "google_ai": "<score>" }
+      {
+        "competitor": "<name>",
+        "perplexity": "mentioned|not mentioned|cited as top choice",
+        "google_ai": "mentioned|not mentioned|cited",
+        "geo_advantage": "<why they appear and ${product} does not>"
+      }
     ]
   },
-  "geo_opportunity": "<specific action to improve AI visibility>",
-  "quick_seo_win": "<highest value keyword gap to target first>"
+  "geo_opportunity": "<the single most impactful action ${product} can take to start appearing in AI search answers>",
+  "quick_seo_win": "<one specific keyword or content action that could show results within 30 days>"
 }`,
   }
 }
 
 function buildTab4Prompts(product, tab1Output, tab2Output, tab3Output) {
   return {
-    system: `You are the strategic advisor to ${product} product and marketing teams.
-You have four intelligence reports, Ahrefs MCP, and Slack MCP.
-Your job is to synthesise everything into three specific, evidence-backed recommendations and post to Slack automatically.
-Return only valid JSON. Start with {`,
-    user: `COMPETITOR INTELLIGENCE: ${tab1Output || 'Not yet run — synthesise from your knowledge.'}
+    system: `You are the Chief Strategy Officer advising the ${product} leadership team.
+You have just received three fresh intelligence reports.
+Your job is to synthesise them into decisions — not observations.
+Every recommendation must be specific enough to put on a roadmap tomorrow.
+Every recommendation must cite real evidence from the intelligence reports.
+You also search for any breaking news that affects the recommendation.
+Return only valid JSON. No markdown. Start with {`,
+    user: `You have three live intelligence reports. Read them carefully before responding.
 
-BUYER SIGNALS: ${tab2Output || 'Not yet run — synthesise from your knowledge.'}
+COMPETITOR INTELLIGENCE REPORT:
+${tab1Output || 'Run Tab 1 first for best results. Proceed with web search knowledge.'}
 
-SEO AND GEO REPORT: ${tab3Output || 'Not yet run — synthesise from your knowledge.'}
+BUYER SIGNALS REPORT:
+${tab2Output || 'Run Tab 2 first for best results. Proceed with web search knowledge.'}
 
-Step 1: Search for any new privacy regulations or GDPR enforcement actions announced in 2026.
-Step 2: Generate three recommendations using all available intelligence as evidence.
-Step 3: Post to Slack #product-intelligence:
-"STRATEGY REPORT — ${new Date().toLocaleDateString()}
-Top finding: [one sentence]
-Top recommendation: [one sentence]
-Evidence: [one sentence]"
+SEO AND GEO REPORT:
+${tab3Output || 'Run Tab 3 first for best results. Proceed with web search knowledge.'}
 
-Return ONLY:
+Before generating recommendations, search for:
+- "GDPR enforcement action 2026" — any new fines or rulings?
+- "cookie consent regulation 2026 update" — any new laws?
+- "${product} news 2026" — anything happening with the product?
+- "cookie consent market 2026" — any industry shifts?
+
+Now generate the strategy. Rules:
+- Each recommendation must cite a specific finding from the reports above
+- Product recommendation must be specific enough for a sprint ticket
+- Marketing recommendation must include the exact content to create
+- SEO/GEO recommendation must name the exact keyword or platform to target
+- The opportunity buyer must be real — based on evidence, not assumption
+- The Slack message must be ready to post verbatim
+
+Return ONLY this JSON:
 {
-  "intelligence_summary": "<2 sentences — the most important cross-layer finding>",
+  "intelligence_summary": "<2 sentences — the single most important finding across all three reports and its direct implication for ${product}>",
+  "breaking_context": "<any 2026 regulatory or market news found that changes the recommendation>",
   "recommendations": [
     {
       "type": "product",
-      "title": "<5-7 word action>",
-      "what": "<specific enough for a roadmap>",
-      "evidence": "<competitor gap + buyer quote + data>",
-      "urgency": "high|medium|low"
+      "title": "<5-7 word action title — verb first>",
+      "what": "<specific enough for a sprint ticket — name the feature, the user flow, the success metric>",
+      "why_now": "<the specific competitive or buyer evidence that makes this urgent>",
+      "evidence": "<direct quote or finding from the intelligence reports>",
+      "urgency": "high|medium|low",
+      "effort": "low|medium|high",
+      "impact": "low|medium|high"
     },
     {
       "type": "marketing",
-      "title": "<5-7 word action>",
-      "what": "<specific content or messaging change>",
-      "evidence": "<buyer language + keyword gap + content brief>",
+      "title": "<5-7 word action title>",
+      "what": "<exact content piece to create — title, format, target keyword, primary argument>",
+      "why_now": "<specific buyer signal or GEO gap that makes this urgent>",
+      "evidence": "<direct quote or finding from the intelligence reports>",
       "urgency": "high|medium|low",
-      "content_brief_summary": "<one sentence: write [title] targeting [keyword] — closes [gap] and has [high/medium/low] potential to appear in AI search answers>",
+      "content_brief_summary": "<one sentence: write [exact title] targeting [exact keyword] — it closes [specific gap] and has [high/medium/low] GEO potential>",
       "ready_to_brief": true
     },
     {
       "type": "seo_geo",
-      "title": "<5-7 word action>",
-      "what": "<specific SEO or GEO action>",
-      "evidence": "<data + GEO visibility gap>",
+      "title": "<5-7 word action title>",
+      "what": "<specific SEO or GEO action — exact keyword to target or exact AI platform to optimise for>",
+      "why_now": "<specific gap found in the SEO/GEO report>",
+      "evidence": "<direct finding from Tab 3>",
       "urgency": "high|medium|low"
     }
   ],
-  "quick_win": "<one action this week, no engineering needed>",
+  "quick_win": "<one specific action the team can take TODAY with no engineering — a tweet, a G2 response, a Perplexity answer, a LinkedIn post>",
+  "slack_message": "STRATEGY REPORT — ${new Date().toLocaleDateString()}\n\nTop finding: <one sentence from intelligence summary>\nTop recommendation: <title of highest urgency recommendation>\nEvidence: <one specific data point>\nQuick win: <the quick win above>",
   "opportunity_buyer": {
-    "name": "<realistic name>",
-    "role": "<title and company type>",
-    "pain": "<their specific pain>",
-    "trigger": "<what makes them act>",
-    "anxiety_2026": "<what worries them right now>"
+    "name": "<realistic full name>",
+    "role": "<specific job title and company type>",
+    "company_size": "<employee range>",
+    "pain": "<their specific pain in their own words — based on evidence found>",
+    "trigger": "<the specific event that makes them start searching today>",
+    "anxiety_2026": "<what specifically is worrying them right now based on research>",
+    "where_they_search": "<exact platforms and queries they use to find solutions>"
   }
 }`,
   }
@@ -350,20 +482,30 @@ Return ONLY:
 
 function buildCopyValidationPrompts(buyer, intelligenceSummary, contentType, copyText) {
   return {
-    system: `You are simulating ${buyer.name} (${buyer.role}).
-Pain: ${buyer.pain}
-Trigger: ${buyer.trigger}
-Current anxiety: ${buyer.anxiety_2026}
-This buyer was identified as the strategic opportunity across four intelligence layers.
-Test whether current copy will reach them. Return only valid JSON. Start with {`,
-    user: `Strategic context: ${intelligenceSummary}
+    system: `You are ${buyer.name}, ${buyer.role}.
+You are a real person evaluating this copy. You are not helpful. You are not generous.
+You are skeptical, busy, and have seen a hundred tools like this.
+Your pain: ${buyer.pain}
+What triggered your search today: ${buyer.trigger}
+What is keeping you up at night in 2026: ${buyer.anxiety_2026}
+Where you look for answers: ${buyer.where_they_search || 'Google, Reddit, Perplexity, G2'}
+You will score this copy honestly. You will read it exactly as you would in real life.
+Search the web for what people like you are currently saying about tools like this.
+Return only valid JSON. Start with {`,
+    user: `Before scoring, search for:
+- What are ${buyer.role} professionals saying about cookie consent tools in 2026?
+- What does "${copyText.slice(0, 50)}" signal to a buyer in this market?
 
-Evaluate this ${contentType} as ${buyer.name}:
+Strategic context from our intelligence: ${intelligenceSummary}
+
+Now read this ${contentType} as ${buyer.name}:
 """
 ${copyText}
 """
 
-Return ONLY:
+Read it once. React honestly. Then score it.
+
+Return ONLY this JSON:
 {
   "overall_score": <1-10>,
   "relevance_score": <1-10>,
@@ -371,11 +513,19 @@ Return ONLY:
   "trust_score": <1-10>,
   "urgency_score": <1-10>,
   "verdict": "Would click|Would not click|Saves for later|Forwards to team|Deletes immediately",
-  "inner_monologue": "<4 sentences first person. Reference specific lines. Connect to the strategic intelligence.>",
-  "strategy_alignment_gap": "<what copy assumes vs what all four intelligence layers found about this buyer>",
-  "what_worked": ["<specific>", "<specific>"],
-  "what_didnt": ["<specific>", "<specific>"],
-  "rewrite": "<rewrite the key line for the opportunity buyer>"
+  "first_reaction": "<the first thought that crosses your mind in 3 words>",
+  "inner_monologue": "<5 sentences first person stream of consciousness. Reference specific words and phrases from the copy. Connect directly to your pain and anxiety. Be brutally honest. This is what you actually think, not what you would say politely.>",
+  "strategy_alignment_gap": "<the specific mismatch between what this copy assumes about you and what you actually care about based on the intelligence>",
+  "what_worked": [
+    "<specific word, phrase or claim that landed — and exactly why>",
+    "<another specific thing that worked>"
+  ],
+  "what_didnt": [
+    "<specific word, phrase or claim that failed — and exactly why>",
+    "<another specific failure>"
+  ],
+  "the_one_thing_missing": "<the single most important thing this copy does not say that would make you stop and read it properly>",
+  "rewrite": "<rewrite the entire copy for this content type — make it speak directly to this buyer's exact situation in 2026. Use their language. Address their specific anxiety. Make it impossible to ignore.>"
 }`,
   }
 }
@@ -427,11 +577,18 @@ function Tab1Result({ data }) {
   return (
     <div className="result-section">
       <div className="summary-box">{data.summary}</div>
+      {(data.market_signals || []).length > 0 && (
+        <div className="market-signals-box">
+          <strong>Market Signals 2026</strong>
+          <ul>{data.market_signals.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </div>
+      )}
       <div className="cards-grid">
         {(data.competitor_intelligence || []).map((c, i) => (
           <div key={i} className="card">
             <div className="card-header">
               <h3>{c.competitor}</h3>
+              {c.urgency && <Badge urgency={c.urgency} />}
             </div>
             <div className="card-body">
               <div className="field">
@@ -450,6 +607,18 @@ function Tab1Result({ data }) {
                 <label>Top complaint</label>
                 <blockquote>"{c.top_user_complaint}"</blockquote>
               </div>
+              {c.second_complaint && (
+                <div className="field quote-field">
+                  <label>Second complaint</label>
+                  <blockquote>"{c.second_complaint}"</blockquote>
+                </div>
+              )}
+              {c.buyer_profile && (
+                <div className="field">
+                  <label>Who buys this</label>
+                  <p>{c.buyer_profile}</p>
+                </div>
+              )}
               <div className="field action-field">
                 <label>Recommended action</label>
                 <p>{c.recommended_action}</p>
@@ -481,24 +650,38 @@ function Tab2Result({ data }) {
               <span className={`freq-badge freq-${p.frequency?.replace(' ', '-')}`}>{p.frequency}</span>
             </div>
             <blockquote>"{p.buyer_quote}"</blockquote>
-            <div className="source-tag">{p.source}</div>
+            <div className="pain-meta">
+              {p.reviewer_context && <span className="reviewer-context">{p.reviewer_context}</span>}
+              <span className="source-tag">{p.source}</span>
+            </div>
           </div>
         ))}
       </section>
 
       <section>
         <h3 className="section-title">What Buyers Wish Existed</h3>
-        <ul className="wish-list">
-          {(data.what_buyers_wish_existed || []).map((w, i) => <li key={i}>{w}</li>)}
-        </ul>
+        {(data.what_buyers_wish_existed || []).map((w, i) => {
+          const wish = typeof w === 'string' ? { wish: w } : w
+          return (
+            <div key={i} className="complaint-card">
+              <strong>{wish.wish}</strong>
+              {wish.evidence && <blockquote>"{wish.evidence}"</blockquote>}
+              {wish.source && <div className="source-tag">{wish.source}</div>}
+            </div>
+          )
+        })}
       </section>
 
       <section>
         <h3 className="section-title">Competitor Complaint Patterns</h3>
         {(data.competitor_complaints || []).map((c, i) => (
           <div key={i} className="complaint-card">
-            <strong>{c.competitor}</strong>
+            <div className="complaint-header">
+              <strong>{c.competitor}</strong>
+              {c.frequency && <span className={`freq-badge freq-${c.frequency?.replace(' ', '-')}`}>{c.frequency}</span>}
+            </div>
             <p className="complaint-text">{c.complaint}</p>
+            {c.exact_quote && <blockquote>"{c.exact_quote}"</blockquote>}
             <div className="opportunity-tag">Opportunity → {c.cookieyes_opportunity}</div>
           </div>
         ))}
@@ -506,12 +689,28 @@ function Tab2Result({ data }) {
 
       <section>
         <h3 className="section-title">Buyer Language to Adopt</h3>
-        <div className="language-chips">
-          {(data.buyer_language || []).map((phrase, i) => (
-            <span key={i} className="chip">"{phrase}"</span>
-          ))}
+        <div className="language-cards">
+          {(data.buyer_language || []).map((item, i) => {
+            const entry = typeof item === 'string' ? { phrase: item } : item
+            return (
+              <div key={i} className="language-card">
+                <span className="chip">"{entry.phrase}"</span>
+                {entry.context && <p className="lang-context">{entry.context}</p>}
+                {entry.use_in_copy && <p className="lang-use">Use in copy: {entry.use_in_copy}</p>}
+              </div>
+            )
+          })}
         </div>
       </section>
+
+      {(data.emerging_concerns_2026 || []).length > 0 && (
+        <section>
+          <h3 className="section-title">Emerging Concerns 2026</h3>
+          <ul className="wish-list">
+            {data.emerging_concerns_2026.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }
@@ -529,9 +728,10 @@ function Tab3Result({ data }) {
             <thead>
               <tr>
                 <th>Query</th>
-                <th>Monthly Volume</th>
-                <th>Competitor Ranking</th>
+                <th>Volume</th>
+                <th>Top Rankers</th>
                 <th>CookieYes</th>
+                <th>Severity</th>
                 <th>Opportunity</th>
               </tr>
             </thead>
@@ -540,8 +740,9 @@ function Tab3Result({ data }) {
                 <tr key={i}>
                   <td><strong>{g.query}</strong></td>
                   <td>{g.monthly_volume}</td>
-                  <td>{g.competitor_ranking}</td>
+                  <td>{Array.isArray(g.top_rankers) ? g.top_rankers.join(', ') : g.top_rankers || g.competitor_ranking}</td>
                   <td className="not-ranking">{g.cookieyes_ranking}</td>
+                  <td>{g.gap_severity && <Badge urgency={g.gap_severity} />}</td>
                   <td>{g.opportunity}</td>
                 </tr>
               ))}
@@ -553,10 +754,17 @@ function Tab3Result({ data }) {
       <div className="two-col">
         <section>
           <h3 className="section-title">Content Gaps</h3>
-          <ul className="gap-list">
-            {(data.content_gaps || []).map((g, i) => <li key={i}>{g}</li>)}
-          </ul>
-          <div className="quick-win-box">
+          {(data.content_gaps || []).map((g, i) => {
+            const gap = typeof g === 'string' ? { topic: g } : g
+            return (
+              <div key={i} className="content-gap-row">
+                <span>{gap.topic}</span>
+                {gap.competitor_who_has_it && <span className="geo-tag">{gap.competitor_who_has_it}</span>}
+                {gap.estimated_traffic_value && <span className={`geo-potential-badge geo-${gap.estimated_traffic_value}`}>{gap.estimated_traffic_value}</span>}
+              </div>
+            )
+          })}
+          <div className="quick-win-box" style={{ marginTop: '12px' }}>
             <strong>Quick SEO Win:</strong> {data.quick_seo_win}
           </div>
         </section>
@@ -573,11 +781,24 @@ function Tab3Result({ data }) {
               <strong>{data.geo_visibility?.google_ai_overview}</strong>
             </div>
           </div>
+          {data.geo_visibility?.perplexity_exact_finding && (
+            <div className="geo-finding-box">
+              <label>Perplexity said:</label>
+              <p>"{data.geo_visibility.perplexity_exact_finding}"</p>
+            </div>
+          )}
+          {data.geo_visibility?.google_ai_exact_finding && (
+            <div className="geo-finding-box">
+              <label>Google AI said:</label>
+              <p>"{data.geo_visibility.google_ai_exact_finding}"</p>
+            </div>
+          )}
           {(data.geo_visibility?.competitor_geo_scores || []).map((c, i) => (
             <div key={i} className="competitor-geo-row">
               <span>{c.competitor}</span>
               <span className="geo-tag">Perplexity: {c.perplexity}</span>
               <span className="geo-tag">Google AI: {c.google_ai}</span>
+              {c.geo_advantage && <span className="geo-advantage">{c.geo_advantage}</span>}
             </div>
           ))}
           <div className="opportunity-tag" style={{ marginTop: '12px' }}>
@@ -596,9 +817,20 @@ function Tab3Result({ data }) {
             <div className="brief-row">
               <label>Target keyword</label><span>{data.content_brief.target_keyword}</span>
             </div>
+            {(data.content_brief.secondary_keywords || []).length > 0 && (
+              <div className="brief-row">
+                <label>Secondary keywords</label>
+                <span>{data.content_brief.secondary_keywords.join(', ')}</span>
+              </div>
+            )}
             <div className="brief-row">
               <label>Recommended title</label><span>{data.content_brief.recommended_title}</span>
             </div>
+            {data.content_brief.search_intent && (
+              <div className="brief-row">
+                <label>Search intent</label><span>{data.content_brief.search_intent}</span>
+              </div>
+            )}
             <div className="brief-row">
               <label>GEO potential</label>
               <span className={`geo-potential-badge geo-${data.content_brief.geo_potential}`}>
@@ -612,6 +844,11 @@ function Tab3Result({ data }) {
             <div className="brief-row">
               <label>Beat the competition</label><span>{data.content_brief.beat_the_competition}</span>
             </div>
+            {data.content_brief.geo_optimisation_tip && (
+              <div className="brief-row geo-tip-row">
+                <label>GEO tip</label><span>{data.content_brief.geo_optimisation_tip}</span>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -623,8 +860,14 @@ function Tab3Result({ data }) {
 
 function Tab4Result({ data }) {
   if (!data) return null
-  const typeIcon = { product: '🛠', marketing: '📣', seo_geo: '🔍' }
   const typeLabel = { product: 'Product', marketing: 'Marketing', seo_geo: 'SEO / GEO' }
+  const [slackCopied, setSlackCopied] = useState(false)
+
+  function copySlack() {
+    navigator.clipboard.writeText(data.slack_message || '')
+    setSlackCopied(true)
+    setTimeout(() => setSlackCopied(false), 2000)
+  }
 
   return (
     <div className="result-section">
@@ -633,15 +876,30 @@ function Tab4Result({ data }) {
         <p>{data.intelligence_summary}</p>
       </div>
 
+      {data.breaking_context && (
+        <div className="breaking-context-box">
+          <strong>Breaking Context 2026</strong>
+          <p>{data.breaking_context}</p>
+        </div>
+      )}
+
       <h3 className="section-title">Three Recommendations</h3>
       {(data.recommendations || []).map((r, i) => (
         <div key={i} className="recommendation-card">
           <div className="rec-header">
             <span className="rec-type">{typeLabel[r.type] || r.type}</span>
             <Badge urgency={r.urgency} />
+            {r.effort && <span className="effort-tag">Effort: {r.effort}</span>}
+            {r.impact && <span className="impact-tag">Impact: {r.impact}</span>}
           </div>
           <h4>{r.title}</h4>
           <p className="rec-what">{r.what}</p>
+          {r.why_now && (
+            <div className="rec-why-now">
+              <label>Why now</label>
+              <p>{r.why_now}</p>
+            </div>
+          )}
           <div className="rec-evidence">
             <label>Evidence</label>
             <p>{r.evidence}</p>
@@ -656,9 +914,21 @@ function Tab4Result({ data }) {
       ))}
 
       <div className="quick-win-box">
-        <strong>Quick Win This Week</strong>
+        <strong>Quick Win Today</strong>
         <p>{data.quick_win}</p>
       </div>
+
+      {data.slack_message && (
+        <div className="slack-message-box">
+          <div className="slack-header">
+            <strong>#product-intelligence</strong>
+            <button className="copy-btn" onClick={copySlack}>
+              {slackCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <pre className="slack-pre">{data.slack_message}</pre>
+        </div>
+      )}
 
       {data.opportunity_buyer && (
         <div className="buyer-card">
@@ -666,9 +936,15 @@ function Tab4Result({ data }) {
           <div className="buyer-grid">
             <div><label>Name</label><p>{data.opportunity_buyer.name}</p></div>
             <div><label>Role</label><p>{data.opportunity_buyer.role}</p></div>
-            <div><label>Pain</label><p>{data.opportunity_buyer.pain}</p></div>
+            {data.opportunity_buyer.company_size && (
+              <div><label>Company size</label><p>{data.opportunity_buyer.company_size}</p></div>
+            )}
             <div><label>Trigger</label><p>{data.opportunity_buyer.trigger}</p></div>
+            <div className="buyer-full"><label>Pain</label><p>{data.opportunity_buyer.pain}</p></div>
             <div className="buyer-full"><label>2026 Anxiety</label><p>{data.opportunity_buyer.anxiety_2026}</p></div>
+            {data.opportunity_buyer.where_they_search && (
+              <div className="buyer-full"><label>Where they search</label><p>{data.opportunity_buyer.where_they_search}</p></div>
+            )}
           </div>
         </div>
       )}
@@ -704,6 +980,13 @@ function CopyValidationResult({ data }) {
 
   return (
     <div className="result-section">
+      {data.first_reaction && (
+        <div className="first-reaction-box">
+          <label>First reaction</label>
+          <strong>"{data.first_reaction}"</strong>
+        </div>
+      )}
+
       <div className="scores-row">
         {[
           { label: 'Overall', val: data.overall_score },
@@ -744,8 +1027,15 @@ function CopyValidationResult({ data }) {
         <p>{data.strategy_alignment_gap}</p>
       </div>
 
+      {data.the_one_thing_missing && (
+        <div className="one-thing-box">
+          <label>The One Thing Missing</label>
+          <p>{data.the_one_thing_missing}</p>
+        </div>
+      )}
+
       <div className="rewrite-box">
-        <label>Suggested Rewrite</label>
+        <label>Rewrite</label>
         <p>"{data.rewrite}"</p>
       </div>
     </div>
@@ -874,6 +1164,56 @@ export default function App() {
     }
   }, [apiKey, tab4Data, contentType, copyText])
 
+  const runAll = useCallback(async () => {
+    if (!apiKey) return setErr('all', 'API key required')
+    setErr('all', null)
+    try {
+      // Tabs 1, 2, 3 run in parallel
+      setLoad(1, true); setErr(1, null)
+      setLoad(2, true); setErr(2, null)
+      setLoad(3, true); setErr(3, null)
+
+      const [r1, r2, r3] = await Promise.all([
+        // Tab 1
+        (async () => {
+          const { system, user } = buildTab1Prompts(product, industry, competitors)
+          const raw = await callClaude({ apiKey, system, user })
+          setTab1Raw(raw); setTab1Data(extractJSON(raw)); setLoad(1, false)
+          return raw
+        })(),
+        // Tab 2
+        (async () => {
+          const { system, user } = buildTab2Prompts(product, competitors)
+          const raw = await callClaude({ apiKey, system, user })
+          setTab2Raw(raw); setTab2Data(extractJSON(raw)); setLoad(2, false)
+          return raw
+        })(),
+        // Tab 3
+        (async () => {
+          let ahrefsData3 = null
+          if (ahrefsKey) {
+            try { ahrefsData3 = await fetchAhrefsData({ ahrefsKey, product, competitors }) } catch {}
+          }
+          const { system, user } = buildTab3Prompts(product, competitors, ahrefsData3)
+          const raw = await callClaude({ apiKey, system, user })
+          setTab3Raw(raw); setTab3Data(extractJSON(raw)); setLoad(3, false)
+          return raw
+        })(),
+      ])
+
+      // Tab 4 runs after all three complete
+      setActiveTab(3); setLoad(4, true); setErr(4, null)
+      const { system: s4, user: u4 } = buildTab4Prompts(product, r1, r2, r3)
+      const r4 = await callClaude({ apiKey, system: s4, user: u4 })
+      setTab4Raw(r4); setTab4Data(extractJSON(r4)); setLoad(4, false)
+    } catch (e) {
+      setLoad(1, false); setLoad(2, false); setLoad(3, false); setLoad(4, false)
+      setErr('all', e.message)
+    }
+  }, [apiKey, ahrefsKey, product, industry, competitors])
+
+  const isRunningAll = loading[1] || loading[2] || loading[3] || loading[4]
+
   const tabs = [
     { label: 'Competitor Intelligence', num: 1 },
     { label: 'Dark Funnel Signals', num: 2 },
@@ -892,6 +1232,18 @@ export default function App() {
             <div>
               <h1>Strategy Copilot</h1>
               <p className="header-sub">AI-powered product intelligence for CookieYes · Powered by Claude</p>
+            </div>
+            <div className="run-all-wrap">
+              {errors.all && <span className="run-all-error">{errors.all}</span>}
+              <button
+                className="run-all-btn"
+                onClick={runAll}
+                disabled={isRunningAll}
+              >
+                {isRunningAll
+                  ? <><span className="spinner spinner-dark" /> Running all tabs…</>
+                  : '⚡ Run Full Analysis'}
+              </button>
             </div>
           </div>
         </div>
@@ -937,6 +1289,26 @@ export default function App() {
         </div>
       </div>
 
+      {isRunningAll && (
+        <div className="run-all-progress">
+          {[
+            { n: 1, label: 'Competitor Intelligence' },
+            { n: 2, label: 'Dark Funnel Signals' },
+            { n: 3, label: 'SEO & GEO' },
+            { n: 4, label: 'What to Build Next' },
+          ].map(s => {
+            const done = (s.n === 1 && tab1Data) || (s.n === 2 && tab2Data) || (s.n === 3 && tab3Data) || (s.n === 4 && tab4Data)
+            const running = loading[s.n]
+            return (
+              <div key={s.n} className={`progress-step ${done ? 'step-done' : running ? 'step-running' : 'step-pending'}`}>
+                <span className="step-icon">{done ? '✓' : running ? <span className="spinner spinner-sm" /> : s.n}</span>
+                {s.label}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div className="tabs-nav">
         {tabs.map((t, i) => (
           <button
@@ -944,7 +1316,9 @@ export default function App() {
             className={`tab-btn ${activeTab === i ? 'tab-active' : ''}`}
             onClick={() => setActiveTab(i)}
           >
-            <span className="tab-num">{t.num}</span>
+            <span className={`tab-num ${[tab1Data, tab2Data, tab3Data, tab4Data][i] ? 'tab-num-done' : ''}`}>
+              {[tab1Data, tab2Data, tab3Data, tab4Data][i] ? '✓' : t.num}
+            </span>
             {t.label}
           </button>
         ))}
